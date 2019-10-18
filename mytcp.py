@@ -1,4 +1,5 @@
 import asyncio
+import random
 from mytcputils import *
 
 
@@ -18,7 +19,8 @@ class Servidor:
         self.callback = callback
 
     def _rdt_rcv(self, src_addr, dst_addr, segment):
-        src_port, dst_port, seq_no, ack_no, flags, window_size, checksum, urg_ptr = read_header(segment)
+        src_port, dst_port, seq_no, ack_no, \
+            flags, window_size, checksum, urg_ptr = read_header(segment)
 
         if dst_port != self.porta:
             # Ignora segmentos que não são destinados à porta do nosso servidor
@@ -30,14 +32,11 @@ class Servidor:
         if (flags & FLAGS_SYN) == FLAGS_SYN:
             # A flag SYN estar setada significa que é um cliente tentando estabelecer uma conexão nova
             # TODO: talvez você precise passar mais coisas para o construtor de conexão
-
             conexao = self.conexoes[id_conexao] = Conexao(self, id_conexao)
             # TODO: você precisa fazer o handshake aceitando a conexão. Escolha se você acha melhor
             # fazer aqui mesmo ou dentro da classe Conexao.
 
-            segmento = (src_addr, dst_addr, fix_checksum(make_header(src_port, dst_port, seq_no, seq_no+1, FLAGS_ACK+FLAGS_SYN), src_addr, dst_addr))
-
-            self.rede.enviar(segmento, src_port)
+            self.rede.enviar(fix_checksum(make_header(dst_port, src_port, random.randint(0, 0xffff), seq_no+1, FLAGS_ACK+FLAGS_SYN), dst_addr, src_addr), src_addr);
 
             if self.callback:
                 self.callback(conexao)

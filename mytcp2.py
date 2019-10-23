@@ -32,35 +32,27 @@ class Servidor:
         if (flags & FLAGS_SYN) == FLAGS_SYN:
             # A flag SYN estar setada significa que é um cliente tentando estabelecer uma conexão nova
             # TODO: talvez você precise passar mais coisas para o construtor de conexão
-            conexao = self.conexoes[id_conexao] = Conexao(self, id_conexao, seq_no)
-            # TODO: você precisa fazer o handshake þaceitando a conexão. Escolha se você acha melhor
+            conexao = self.conexoes[id_conexao] = Conexao(self, id_conexao)
+            # TODO: você precisa fazer o handshake aceitando a conexão. Escolha se você acha melhor
             # fazer aqui mesmo ou dentro da classe Conexao.
-            
+
+            self.rede.enviar(fix_checksum(make_header(dst_port, src_port, random.randint(0, 0xffff), seq_no+1, FLAGS_ACK+FLAGS_SYN), dst_addr, src_addr), src_addr);
 
             if self.callback:
                 self.callback(conexao)
         elif id_conexao in self.conexoes:
             # Passa para a conexão adequada se ela já estiver estabelecida
-            self.conexoes[id_conexao]._rdt_rcv(ack_no, seq_no, flags, payload)
+            self.conexoes[id_conexao]._rdt_rcv(seq_no, ack_no, flags, payload)
         else:
             print('%s:%d -> %s:%d (pacote associado a conexão desconhecida)' %
                   (src_addr, src_port, dst_addr, dst_port))
 
 
 class Conexao:
-    def __init__(self, servidor, id_conexao, seq_no):
-  
+    def __init__(self, servidor, id_conexao):
         self.servidor = servidor
         self.id_conexao = id_conexao
         self.callback = None
-
-        self.y = random.randint(0, 0xffff)
-        self.servidor.rede.enviar(fix_checksum(make_header(self.servidor.porta, self.id_conexao[1], self.y, seq_no+1, FLAGS_ACK+FLAGS_SYN), self.id_conexao[2], self.id_conexao[0]), self.id_conexao[0]);
-        
-
-        self.expectedseqnum = seq_no + 1
-        self.ack_no = self.y + 1
-
         self.timer = asyncio.get_event_loop().call_later(1, self._exemplo_timer)  # um timer pode ser criado assim; esta linha é só um exemplo e pode ser removida
         #self.timer.cancel()   # é possível cancelar o timer chamando esse método; esta linha é só um exemplo e pode ser removida
 
@@ -72,18 +64,6 @@ class Conexao:
         # TODO: trate aqui o recebimento de segmentos provenientes da camada de rede.
         # Chame self.callback(self, dados) para passar dados para a camada de aplicação após
         # garantir que eles não sejam duplicados e que tenham sido recebidos em ordem.
-
-        #if seq_no != self.expectedseqnum:
-        #    self.servidor.rede.enviar(fix_checksum(make_header(self.dst_port, self.src_port , 0, self.expectedseqnum, FLAGS_ACK), self.dst_addr, self.src_addr), self.src_addr);         
-
-        if ack_no == self.expectedseqnum and len(payload)!=0:
-            self.expectedseqnum += len(payload)
-  
-            self.servidor.rede.enviar(fix_checksum(make_header(self.servidor.porta, self.id_conexao[1], seq_no, self.expectedseqnum, FLAGS_ACK),self.id_conexao[2],self.id_conexao[0]),self.id_conexao[0])
-
-            self.callback(self,payload)
-
-        
         print('recebido payload: %r' % payload)
 
     # Os métodos abaixo fazem parte da API
@@ -93,8 +73,6 @@ class Conexao:
         Usado pela camada de aplicação para registrar uma função para ser chamada
         sempre que dados forem corretamente recebidos
         """
-
-        
         self.callback = callback
 
     def enviar(self, dados):

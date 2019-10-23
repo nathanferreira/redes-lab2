@@ -35,6 +35,7 @@ class Servidor:
             conexao = self.conexoes[id_conexao] = Conexao(self, id_conexao, seq_no)
             # TODO: você precisa fazer o handshake þaceitando a conexão. Escolha se você acha melhor
             # fazer aqui mesmo ou dentro da classe Conexao.
+
             
 
             if self.callback:
@@ -104,6 +105,11 @@ class Conexao:
         # TODO: implemente aqui o envio de dados.
         # Chame self.servidor.rede.enviar(segmento, dest_addr) para enviar o segmento
         # que você construir para a camada de rede.
+        #self.expectedseqnum += len(dados)
+  
+        self.servidor.rede.enviar(fix_checksum(make_header(self.servidor.porta, self.id_conexao[1], self.ack_no, self.expectedseqnum-1, FLAGS_SYN>>12),self.id_conexao[2],self.id_conexao[0]),self.id_conexao[0])
+        print('flags = %d %d, ack = %d, seq_no = %d, %d' % (,FLAGS_ACK,self.ack_no,self.expectedseqnum-1,FLAGS_ACK+FLAGS_SYN))
+        self.callback(self,dados)
         pass
 
     def fechar(self):
